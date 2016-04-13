@@ -50,7 +50,7 @@ deploy:
     - Nostromo-A-Tale-of-the-Seaboard.mobi
     - Nostromo-A-Tale-of-the-Seaboard.pdf
   "on":
-    repo: rdhyee/Nostromo-A-Tale-of-the-Seaboard_2021
+    repo: rdhyee/Nostromo--A-Tale-of-the-Seaboard_2021
 addons:
   apt:
     packages:

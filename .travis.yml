@@ -1,0 +1,59 @@
+sudo: required
+dist: trusty
+language: ruby
+
+before_install:
+- gem install asciidoctor -v 1.5.2 
+- gem install tilt
+- sudo pip install git+https://github.com/rdhyee/ebooklib.git
+script:
+- VERSION=`ruby -e "require 'yaml'; meta = YAML.load_file('metadata.yaml'); puts meta['_version'];"`
+- git clone https://github.com/gitenberg-dev/asciidoctor-htmlbook.git
+
+- sudo pip install -r asciidoctor-htmlbook/gitberg-machine/requirements.txt
+- asciidoctor -a toc,idprefix=xx_,version=$VERSION -b xhtml5 -T ./asciidoctor-htmlbook/htmlbook-autogen/
+  -d book book.asciidoc -o book.html
+- git clone https://github.com/gitenberg-dev/HTMLBook
+
+# make book.html available to jinja2 environment by putting it into templates
+- cp book.html asciidoctor-htmlbook/gitberg-machine/templates/
+
+- /usr/bin/python asciidoctor-htmlbook/gitberg-machine/machine.py -o . -m metadata.yaml book.html
+- xsltproc -stringparam external.assets.list " " ./HTMLBook/htmlbook-xsl/epub.xsl book.html
+- cp ./HTMLBook/stylesheets/epub/epub.css OEBPS
+- if [ -e cover.jpg ]; then cp cover.jpg OEBPS/cover.jpg; fi
+# look for first images directory and one found, copy over to ./OEBPS
+- find . -name images -type d | head -n 1 | xargs -I {} mv {} ./OEBPS/
+- zip -rX book.epub mimetype
+- zip -rX book.epub OEBPS/ META-INF/
+- if test -d "OEBPS/images/"; then zip -rX book.epub OEBPS/images/ ;fi
+- mv book.epub Nostromo-A-Tale-of-the-Seaboard.epub
+- ebook-convert Nostromo-A-Tale-of-the-Seaboard.epub Nostromo-A-Tale-of-the-Seaboard.mobi
+- xvfb-run ebook-convert Nostromo-A-Tale-of-the-Seaboard.epub Nostromo-A-Tale-of-the-Seaboard.pdf
+branches:
+  only:
+  - master
+notifications:
+  webhooks:
+    urls:
+      - https://unglue.it/api/travisci/webhook
+    on_success: always
+    on_failure: never
+    on_start: never
+deploy:
+  skip_cleanup: true
+  provider: releases
+  api_key:
+    secure: Nkk7e52vW9PSny+msHT2qcUrZi8Vp7EWmV4pNymx9G09TIb9w32s+y+jSh46BvijXQaL5DNZPsqTo/h55mf36Bj4EM3xI+iP9B3ynJ+jQVmGjZOZNv+1Uh4p7EsCyFOj7iABaYREY7fI07pHtI82jX8RcY6p4h+jT6gSARkf8eQREgIOA6R0yZQBcP0GcN3fgMQVRURt+QHPpLOomMUwEZFDtLJ6D3Q4Y564sUPiQUbP6KDsjeBOqCuMdeuVeWxCYIe+4NsnuGRjVnDNZdybE7WxXGJohQjGXriFgC6cNPkUeL5Xq/Ku3eVOJtIXzXIKDXIG/VzYiLVBxlVr2X/xGY+dFqUBt/uVb1eC7yb9GqBaFIm6U+MY34+bSuEXmP27InPSrpk+KNybhWfKnGtoUVX61Rl+FfdcyeC9lPOQgzvuXPLym8ydbZ6CcAlYXWuZrYLpXuKJof8zLWPQujhUV1AzDY5x0fPtynQd3+1epU1jujwFlEAW2cUwVH4FH65l2/yT9WH0sY3sQEKm0r3v4CCoaeYyNyN8TTrvfH33h9QyUnY3lD8JQvI7rrxFnGJIZqf9x9jiHXsOz9kjuO27dscssyBRaMMkdHBcGlQIklj85tAPL5jg5+5csFSD/krbjnoDSwdKWngt+IFVA/DDaEUeP17JkshXPRgoziaKrGs=
+  file:
+    - Nostromo-A-Tale-of-the-Seaboard.epub
+    - Nostromo-A-Tale-of-the-Seaboard.mobi
+    - Nostromo-A-Tale-of-the-Seaboard.pdf
+  "on":
+    repo: rdhyee/Nostromo-A-Tale-of-the-Seaboard_2021
+addons:
+  apt:
+    packages:
+    - xsltproc
+    - xvfb
+    - calibre
